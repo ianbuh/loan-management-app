@@ -1,22 +1,21 @@
 import express from "express";
 import cors from "cors";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-
+const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
-const db = await open({
-  filename: "./database.db",
-  driver: sqlite3.Database,
-});
+app.use(cors({ origin: "http://localhost:5173" })); // Update with your frontend URL
+app.use(express.json());
 
-await db.exec(`
+// Open SQLite database
+const db = new Database("./database.db");
+
+// Create tables if they don't exist
+db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT,
@@ -34,21 +33,19 @@ CREATE TABLE IF NOT EXISTS loans (
 );
 `);
 
-const adminExists = await db.get(
-  `SELECT * FROM users WHERE role='super-admin'`
-);
+// Create default super-admin if none exists
+const adminExists = db
+  .prepare(`SELECT * FROM users WHERE role='super-admin'`)
+  .get();
 if (!adminExists) {
-  const hash = await bcrypt.hash("admin123", 10);
-  await db.run(
-    "INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)",
-    "Super Admin",
-    "superadmin@example.com",
-    hash,
-    "super-admin"
-  );
+  const hash = bcrypt.hashSync("admin123", 10);
+  db.prepare(
+    "INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)"
+  ).run("Super Admin", "superadmin@example.com", hash, "super-admin");
 }
 
-const auth = async (req, res, next) => {
+// Auth middleware
+const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "No token" });
   try {
@@ -60,11 +57,14 @@ const auth = async (req, res, next) => {
   }
 };
 
-app.post("/login", async (req, res) => {
+// Routes
+
+// Login
+app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  const user = await db.get("SELECT * FROM users WHERE email=?", email);
+  const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
-  const valid = await bcrypt.compare(password, user.password);
+  const valid = bcrypt.compareSync(password, user.password);
   if (!valid) return res.status(401).json({ message: "Invalid credentials" });
   const token = jwt.sign(
     { id: user.id, role: user.role, name: user.name },
@@ -73,59 +73,58 @@ app.post("/login", async (req, res) => {
   res.json({ token, role: user.role, name: user.name });
 });
 
-app.get("/users", auth, async (req, res) => {
-  const users = await db.all("SELECT id, name, email, role FROM users");
+// Get all users
+app.get("/users", auth, (req, res) => {
+  const users = db.prepare("SELECT id, name, email, role FROM users").all();
   res.json(users);
 });
 
-app.post("/users", auth, async (req, res) => {
+// Add user
+app.post("/users", auth, (req, res) => {
   const { name, email, password, role } = req.body;
   if (role === "admin" && req.user.role !== "super-admin")
     return res.status(403).json({ message: "Not allowed" });
-  const hash = await bcrypt.hash(password, 10);
+  const hash = bcrypt.hashSync(password, 10);
   try {
-    await db.run(
-      "INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)",
-      name,
-      email,
-      hash,
-      role
-    );
+    db.prepare(
+      "INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)"
+    ).run(name, email, hash, role);
     res.json({ message: "User added" });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-app.get("/loans", auth, async (req, res) => {
-  const loans = await db.all("SELECT * FROM loans");
+// Get loans
+app.get("/loans", auth, (req, res) => {
+  const loans = db.prepare("SELECT * FROM loans").all();
   res.json(loans);
 });
 
-app.post("/loans", auth, async (req, res) => {
+// Add loan
+app.post("/loans", auth, (req, res) => {
   const { borrower, item, date_borrowed, due_date } = req.body;
-  await db.run(
-    "INSERT INTO loans (borrower,item,date_borrowed,due_date) VALUES (?,?,?,?)",
-    borrower,
-    item,
-    date_borrowed,
-    due_date
-  );
+  db.prepare(
+    "INSERT INTO loans (borrower,item,date_borrowed,due_date) VALUES (?,?,?,?)"
+  ).run(borrower, item, date_borrowed, due_date);
   res.json({ message: "Loan added" });
 });
 
-app.put("/loans/:id/return", auth, async (req, res) => {
+// Return loan
+app.put("/loans/:id/return", auth, (req, res) => {
   const { id } = req.params;
-  await db.run("UPDATE loans SET returned=1 WHERE id=?", id);
+  db.prepare("UPDATE loans SET returned=1 WHERE id=?").run(id);
   res.json({ message: "Loan returned" });
 });
 
-app.delete("/loans/:id", auth, async (req, res) => {
+// Delete loan
+app.delete("/loans/:id", auth, (req, res) => {
   if (req.user.role !== "super-admin")
     return res.status(403).json({ message: "Not allowed" });
   const { id } = req.params;
-  await db.run("DELETE FROM loans WHERE id=?", id);
+  db.prepare("DELETE FROM loans WHERE id=?").run(id);
   res.json({ message: "Loan deleted" });
 });
 
-app.listen(5000, () => console.log("Backend running on http://localhost:5000"));
+// Start server
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
