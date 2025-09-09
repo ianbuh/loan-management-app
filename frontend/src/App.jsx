@@ -1,25 +1,33 @@
 import { useState, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import axios from "axios";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./components/login";
+import Dashboard from "./components/Dashboard";
+import LoanList from "./components/LoanList";
+import LoanForm from "./components/LoanForm";
+import EmployeesTab from "./components/EmployeesTab";
+import MainPage from "./components/MainPage";
 
-import MainPage from "./components/MainPage.jsx";
-import Login from "./components/login.jsx";
-import Dashboard from "./components/Dashboard.jsx";
-import LoanForm from "./components/LoanForm.jsx";
-import LoanList from "./components/LoanList.jsx";
-import EmployeesTab from "./components/EmployeesTab.jsx";
+// Use environment variable for API URL with a fallback for local development
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function App() {
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const [role, setRole] = useState(null); // 'super-admin', 'admin', 'employee'
   const [loans, setLoans] = useState([]);
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
 
+  // Fetch loans from backend
   const fetchLoans = async () => {
     if (!token) return;
     try {
-      const res = await axios.get("http://localhost:5000/loans", {
+      const res = await axios.get(`${API_URL}/loans`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setLoans(res.data);
@@ -28,10 +36,11 @@ export default function App() {
     }
   };
 
+  // Fetch users from backend
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const res = await axios.get("http://localhost:5000/users", {
+      const res = await axios.get(`${API_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
@@ -51,7 +60,13 @@ export default function App() {
         <Route path="/" element={<MainPage />} />
         <Route
           path="/login"
-          element={token ? <Navigate to="/dashboard" replace /> : <Login setToken={setToken} setRole={setRole} />}
+          element={
+            token ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Login setToken={setToken} setRole={setRole} />
+            )
+          }
         />
         <Route
           path="/dashboard"
@@ -60,11 +75,15 @@ export default function App() {
               <div className="min-h-screen flex bg-gray-50 text-gray-900 font-sans transition-colors">
                 {/* Sidebar */}
                 <aside className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col shadow-md">
-                  <h1 className="text-2xl font-bold mb-6 text-gray-800">Loan Management</h1>
+                  <h1 className="text-2xl font-bold mb-6 text-gray-800">
+                    Loan Management
+                  </h1>
 
                   <button
                     className={`mb-3 px-4 py-2 rounded text-left ${
-                      activeTab === "dashboard" ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
+                      activeTab === "dashboard"
+                        ? "bg-gray-200 font-semibold"
+                        : "hover:bg-gray-100"
                     }`}
                     onClick={() => setActiveTab("dashboard")}
                   >
@@ -73,7 +92,9 @@ export default function App() {
 
                   <button
                     className={`mb-3 px-4 py-2 rounded text-left ${
-                      activeTab === "loans" ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
+                      activeTab === "loans"
+                        ? "bg-gray-200 font-semibold"
+                        : "hover:bg-gray-100"
                     }`}
                     onClick={() => setActiveTab("loans")}
                   >
@@ -83,7 +104,9 @@ export default function App() {
                   {(role === "super-admin" || role === "admin") && (
                     <button
                       className={`mb-3 px-4 py-2 rounded text-left ${
-                        activeTab === "employees" ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
+                        activeTab === "employees"
+                          ? "bg-gray-200 font-semibold"
+                          : "hover:bg-gray-100"
                       }`}
                       onClick={() => setActiveTab("employees")}
                     >
@@ -96,6 +119,7 @@ export default function App() {
                     onClick={() => {
                       setToken(null);
                       setRole(null);
+                      setActiveTab("dashboard");
                     }}
                   >
                     Logout
@@ -107,13 +131,29 @@ export default function App() {
                   {activeTab === "dashboard" && <Dashboard loans={loans} />}
                   {activeTab === "loans" && (
                     <>
-                      <LoanForm fetchLoans={fetchLoans} token={token} />
-                      <LoanList loans={loans} fetchLoans={fetchLoans} token={token} role={role} />
+                      <LoanForm
+                        fetchLoans={fetchLoans}
+                        token={token}
+                        apiUrl={API_URL}
+                      />
+                      <LoanList
+                        loans={loans}
+                        fetchLoans={fetchLoans}
+                        token={token}
+                        role={role}
+                        apiUrl={API_URL}
+                      />
                     </>
                   )}
                   {activeTab === "employees" &&
                     (role === "super-admin" || role === "admin") && (
-                      <EmployeesTab users={users} fetchUsers={fetchUsers} token={token} role={role} />
+                      <EmployeesTab
+                        users={users}
+                        fetchUsers={fetchUsers}
+                        token={token}
+                        role={role}
+                        apiUrl={API_URL}
+                      />
                     )}
                 </main>
               </div>

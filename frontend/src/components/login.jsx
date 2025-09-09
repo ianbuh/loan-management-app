@@ -1,6 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function Login({ setToken, setRole }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -8,7 +10,7 @@ export default function Login({ setToken, setRole }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:5000/login", { email, password });
+      const res = await axios.post(`${API_URL}/login`, { email, password });
       setToken(res.data.token);
       setRole(res.data.role);
     } catch (err) {
@@ -31,8 +33,8 @@ export default function Login({ setToken, setRole }) {
         {/* Demo Credentials */}
         <div className="mt-4 text-sm text-gray-700">
           <p><strong>Demo Super Admin:</strong> superadmin@example.com / admin123</p>
-          <p><strong>Demo Admin:</strong> peyt@example.com / peyt123</p>
-          <p><strong>Demo Employee:</strong> paul@example.com / paul123</p>
+          <p><strong>Demo Admin:</strong> peyt@example.com / peyt</p>
+          <p><strong>Demo Employee:</strong> paul@example.com / paul</p>
         </div>
       </form>
     </div>

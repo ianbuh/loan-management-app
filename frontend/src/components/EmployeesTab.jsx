@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function EmployeesTab({ token, role }) {
   const [users, setUsers] = useState([]);
   const [name, setName] = useState("");
@@ -10,7 +12,7 @@ export default function EmployeesTab({ token, role }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/users", {
+      const res = await axios.get(`${API_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
@@ -27,7 +29,7 @@ export default function EmployeesTab({ token, role }) {
     e.preventDefault();
     try {
       await axios.post(
-        "http://localhost:5000/users",
+        `${API_URL}/users`,
         { name, email, password, role: userRole },
         { headers: { Authorization: `Bearer ${token}` } }
       );

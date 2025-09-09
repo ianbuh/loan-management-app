@@ -1,10 +1,12 @@
 import axios from "axios";
 import dayjs from "dayjs";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function LoanList({ loans, fetchLoans, token, role }) {
   const handleReturn = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/loans/${id}/return`, null, {
+      await axios.put(`${API_URL}/loans/${id}/return`, null, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchLoans();
@@ -16,7 +18,7 @@ export default function LoanList({ loans, fetchLoans, token, role }) {
   const handleDelete = async (id) => {
     if (!confirm("Are you sure?")) return;
     try {
-      await axios.delete(`http://localhost:5000/loans/${id}`, {
+      await axios.delete(`${API_URL}/loans/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchLoans();
@@ -32,6 +34,7 @@ export default function LoanList({ loans, fetchLoans, token, role }) {
           <tr>
             <th className="py-3 px-6 border-b border-gray-200 text-left">Item</th>
             <th className="py-3 px-6 border-b border-gray-200 text-left">Borrower</th>
+            <th className="py-3 px-6 border-b border-gray-200 text-left">Date Borrowed</th>
             <th className="py-3 px-6 border-b border-gray-200 text-left">Due Date</th>
             <th className="py-3 px-6 border-b border-gray-200 text-left">Status</th>
             {role !== "employee" && <th className="py-3 px-6 border-b border-gray-200 text-left">Actions</th>}
@@ -53,8 +56,8 @@ export default function LoanList({ loans, fetchLoans, token, role }) {
                   status === "Overdue" ? "bg-red-100 dark:bg-red-800" : ""
                 } transition-colors`}
               >
-                <td className="p-3 border-b">{loan.borrower}</td>
                 <td className="p-3 border-b">{loan.item}</td>
+                <td className="p-3 border-b">{loan.borrower}</td>
                 <td className="p-3 border-b">{dayjs(loan.date_borrowed).format("YYYY-MM-DD HH:mm")}</td>
                 <td className="p-3 border-b">{dayjs(loan.due_date).format("YYYY-MM-DD HH:mm")}</td>
                 <td
