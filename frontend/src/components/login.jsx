@@ -18,15 +18,22 @@ export default function Login({ setToken, setRole }) {
   };
 
   const inputClass =
-    "w-full p-2 border border-gray-400 dark:border-gray-600 rounded text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition-colors";
+    "w-full p-2 border border-gray-400 rounded text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black transition-colors";
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded shadow-md w-full max-w-sm space-y-4 transition-colors">
-        <h1 className="text-2xl font-bold mb-4 text-black dark:text-white">Login</h1>
+    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+      <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow-md w-full max-w-sm space-y-4 transition-colors">
+        <h1 className="text-2xl font-bold mb-4 text-gray-900">Login</h1>
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required />
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} required />
-        <button type="submit" className="w-full bg-black dark:bg-white text-white dark:text-black p-2 rounded hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors">Login</button>
+        <button type="submit" className="w-full bg-black text-white p-2 rounded hover:bg-gray-800 transition-colors">Login</button>
+
+        {/* Demo Credentials */}
+        <div className="mt-4 text-sm text-gray-700">
+          <p><strong>Demo Super Admin:</strong> superadmin@example.com / admin123</p>
+          <p><strong>Demo Admin:</strong> peyt@example.com / peyt123</p>
+          <p><strong>Demo Employee:</strong> paul@example.com / paul123</p>
+        </div>
       </form>
     </div>
   );
