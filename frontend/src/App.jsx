@@ -3,7 +3,7 @@ import axios from "axios";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import MainPage from "./components/MainPage.jsx";
-import Login from "./components/Login.jsx";
+import Login from "./components/login.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import LoanForm from "./components/LoanForm.jsx";
 import LoanList from "./components/LoanList.jsx";
