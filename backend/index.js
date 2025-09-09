@@ -6,15 +6,15 @@ import jwt from "jsonwebtoken";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const SECRET = "supersecretkey";
+const SECRET = process.env.SECRET || "supersecretkey";
 
-app.use(cors({ origin: "http://localhost:5173" })); // Update with your frontend URL
+app.use(cors({ origin: "*" })); // For testing, allow all origins. Replace with frontend URL in production
 app.use(express.json());
 
-// Open SQLite database
+// SQLite database
 const db = new Database("./database.db");
 
-// Create tables if they don't exist
+// Create tables
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS loans (
 );
 `);
 
-// Create default super-admin if none exists
+// Create default super-admin
 const adminExists = db
   .prepare(`SELECT * FROM users WHERE role='super-admin'`)
   .get();
@@ -49,8 +49,7 @@ const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "No token" });
   try {
-    const decoded = jwt.verify(token, SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(token, SECRET);
     next();
   } catch {
     res.status(401).json({ message: "Invalid token" });
@@ -58,14 +57,12 @@ const auth = (req, res, next) => {
 };
 
 // Routes
-
-// Login
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
-  const valid = bcrypt.compareSync(password, user.password);
-  if (!valid) return res.status(401).json({ message: "Invalid credentials" });
+  if (!bcrypt.compareSync(password, user.password))
+    return res.status(401).json({ message: "Invalid credentials" });
   const token = jwt.sign(
     { id: user.id, role: user.role, name: user.name },
     SECRET
@@ -73,13 +70,11 @@ app.post("/login", (req, res) => {
   res.json({ token, role: user.role, name: user.name });
 });
 
-// Get all users
 app.get("/users", auth, (req, res) => {
   const users = db.prepare("SELECT id, name, email, role FROM users").all();
   res.json(users);
 });
 
-// Add user
 app.post("/users", auth, (req, res) => {
   const { name, email, password, role } = req.body;
   if (role === "admin" && req.user.role !== "super-admin")
@@ -95,13 +90,11 @@ app.post("/users", auth, (req, res) => {
   }
 });
 
-// Get loans
 app.get("/loans", auth, (req, res) => {
   const loans = db.prepare("SELECT * FROM loans").all();
   res.json(loans);
 });
 
-// Add loan
 app.post("/loans", auth, (req, res) => {
   const { borrower, item, date_borrowed, due_date } = req.body;
   db.prepare(
@@ -110,14 +103,12 @@ app.post("/loans", auth, (req, res) => {
   res.json({ message: "Loan added" });
 });
 
-// Return loan
 app.put("/loans/:id/return", auth, (req, res) => {
   const { id } = req.params;
   db.prepare("UPDATE loans SET returned=1 WHERE id=?").run(id);
   res.json({ message: "Loan returned" });
 });
 
-// Delete loan
 app.delete("/loans/:id", auth, (req, res) => {
   if (req.user.role !== "super-admin")
     return res.status(403).json({ message: "Not allowed" });
