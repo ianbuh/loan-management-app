@@ -151,5 +151,14 @@ app.delete("/loans/:id", auth, (req, res) => {
   }
 });
 
+// Serve frontend build
+// This assumes your frontend build output is in a 'dist' folder at the project root
+app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
+
+// For any other route, serve index.html (for React Router)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
+});
+
 // Start server
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
