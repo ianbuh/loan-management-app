@@ -13,17 +13,17 @@ import LoanForm from "./components/LoanForm";
 import EmployeesTab from "./components/EmployeesTab";
 import MainPage from "./components/MainPage";
 
-// Use environment variable for API URL with a fallback for local development
+// Environment variable for API URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
-  const [role, setRole] = useState(null); // 'super-admin', 'admin', 'employee'
+  const [role, setRole] = useState(null);
   const [loans, setLoans] = useState([]);
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Fetch loans from backend
   const fetchLoans = async () => {
     if (!token) return;
     try {
@@ -36,7 +36,6 @@ export default function App() {
     }
   };
 
-  // Fetch users from backend
   const fetchUsers = async () => {
     if (!token) return;
     try {
@@ -53,6 +52,60 @@ export default function App() {
     fetchLoans();
     fetchUsers();
   }, [token]);
+
+  const sidebarContent = (
+    <div className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col shadow-md h-full">
+      <h1 className="text-2xl font-bold mb-6 text-gray-800">
+        Loan Management
+      </h1>
+
+      <button
+        className={`mb-3 px-4 py-2 rounded text-left ${
+          activeTab === "dashboard"
+            ? "bg-gray-200 font-semibold"
+            : "hover:bg-gray-100"
+        }`}
+        onClick={() => setActiveTab("dashboard")}
+      >
+        Dashboard
+      </button>
+
+      <button
+        className={`mb-3 px-4 py-2 rounded text-left ${
+          activeTab === "loans"
+            ? "bg-gray-200 font-semibold"
+            : "hover:bg-gray-100"
+        }`}
+        onClick={() => setActiveTab("loans")}
+      >
+        Loans
+      </button>
+
+      {(role === "super-admin" || role === "admin") && (
+        <button
+          className={`mb-3 px-4 py-2 rounded text-left ${
+            activeTab === "employees"
+              ? "bg-gray-200 font-semibold"
+              : "hover:bg-gray-100"
+          }`}
+          onClick={() => setActiveTab("employees")}
+        >
+          Users
+        </button>
+      )}
+
+      <button
+        className="mt-auto px-4 py-2 rounded border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+        onClick={() => {
+          setToken(null);
+          setRole(null);
+          setActiveTab("dashboard");
+        }}
+      >
+        Logout
+      </button>
+    </div>
+  );
 
   return (
     <Router>
@@ -72,62 +125,51 @@ export default function App() {
           path="/dashboard"
           element={
             token ? (
-              <div className="min-h-screen flex bg-gray-50 text-gray-900 font-sans transition-colors">
-                {/* Sidebar */}
-                <aside className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col shadow-md">
-                  <h1 className="text-2xl font-bold mb-6 text-gray-800">
-                    Loan Management
-                  </h1>
-
+              <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 text-gray-900 font-sans transition-colors">
+                {/* Mobile top bar */}
+                <div className="md:hidden flex justify-between items-center bg-white p-4 shadow-md">
+                  <h1 className="text-xl font-bold">Loan Management</h1>
                   <button
-                    className={`mb-3 px-4 py-2 rounded text-left ${
-                      activeTab === "dashboard"
-                        ? "bg-gray-200 font-semibold"
-                        : "hover:bg-gray-100"
-                    }`}
-                    onClick={() => setActiveTab("dashboard")}
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="text-gray-700 focus:outline-none"
                   >
-                    Dashboard
-                  </button>
-
-                  <button
-                    className={`mb-3 px-4 py-2 rounded text-left ${
-                      activeTab === "loans"
-                        ? "bg-gray-200 font-semibold"
-                        : "hover:bg-gray-100"
-                    }`}
-                    onClick={() => setActiveTab("loans")}
-                  >
-                    Loans
-                  </button>
-
-                  {(role === "super-admin" || role === "admin") && (
-                    <button
-                      className={`mb-3 px-4 py-2 rounded text-left ${
-                        activeTab === "employees"
-                          ? "bg-gray-200 font-semibold"
-                          : "hover:bg-gray-100"
-                      }`}
-                      onClick={() => setActiveTab("employees")}
+                    {/* Hamburger icon */}
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
                     >
-                      Users
-                    </button>
-                  )}
-
-                  <button
-                    className="mt-auto px-4 py-2 rounded border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
-                    onClick={() => {
-                      setToken(null);
-                      setRole(null);
-                      setActiveTab("dashboard");
-                    }}
-                  >
-                    Logout
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6h16M4 12h16M4 18h16"
+                      />
+                    </svg>
                   </button>
-                </aside>
+                </div>
+
+                {/* Sidebar */}
+                <div
+                  className={`fixed inset-y-0 left-0 z-50 w-64 transform bg-white border-r border-gray-200 p-6 shadow-md transition-transform duration-300 md:relative md:translate-x-0 ${
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
+                  }`}
+                >
+                  {sidebarContent}
+                </div>
+
+                {/* Overlay when sidebar is open on mobile */}
+                {sidebarOpen && (
+                  <div
+                    className="fixed inset-0 bg-black opacity-25 z-40 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                  />
+                )}
 
                 {/* Main content */}
-                <main className="flex-1 p-8 overflow-x-auto">
+                <main className="flex-1 p-4 md:p-8 overflow-x-auto">
                   {activeTab === "dashboard" && <Dashboard loans={loans} />}
                   {activeTab === "loans" && (
                     <>
