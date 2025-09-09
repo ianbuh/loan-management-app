@@ -15,13 +15,14 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.SECRET || "supersecretkey";
 
+// --- Middleware ---
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// --- Use absolute path for database ---
+// --- Database Setup ---
 const db = new Database(dbPath);
 
-// Create tables
+// Create tables if they don't exist
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +41,7 @@ db.exec(`
   );
 `);
 
-// Create default super-admin
+// Create default super-admin if none exists
 const adminExists = db
   .prepare(`SELECT * FROM users WHERE role='super-admin'`)
   .get();
@@ -51,7 +52,7 @@ if (!adminExists) {
   ).run("Super Admin", "superadmin@example.com", hash, "super-admin");
 }
 
-// Auth middleware
+// --- Auth Middleware ---
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "No token" });
@@ -63,7 +64,7 @@ const auth = (req, res, next) => {
   }
 };
 
-// Routes
+// ===== API Routes =====
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
@@ -151,14 +152,16 @@ app.delete("/loans/:id", auth, (req, res) => {
   }
 });
 
-// Serve frontend build
-// This assumes your frontend build output is in a 'dist' folder at the project root
+// ===== Frontend Serving =====
+// Serve static files from the React build directory
 app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
 
-// For any other route, serve index.html (for React Router)
+// The "catchall" handler: for any request that doesn't match one above, send back React's index.html file.
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
 });
 
-// Start server
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+// ===== Start Server =====
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
