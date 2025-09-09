@@ -3,34 +3,41 @@ import cors from "cors";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// --- Absolute path setup ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = path.join(__dirname, "database.db");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.SECRET || "supersecretkey";
 
-app.use(cors({ origin: "*" })); // For testing, allow all origins. Replace with frontend URL in production
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// SQLite database
-const db = new Database("./database.db");
+// --- Use absolute path for database ---
+const db = new Database(dbPath);
 
 // Create tables
 db.exec(`
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT,
-  email TEXT UNIQUE,
-  password TEXT,
-  role TEXT
-);
-CREATE TABLE IF NOT EXISTS loans (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  borrower TEXT,
-  item TEXT,
-  date_borrowed TEXT,
-  due_date TEXT,
-  returned INTEGER DEFAULT 0
-);
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    email TEXT UNIQUE,
+    password TEXT,
+    role TEXT
+  );
+  CREATE TABLE IF NOT EXISTS loans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    borrower TEXT,
+    item TEXT,
+    date_borrowed TEXT,
+    due_date TEXT,
+    returned INTEGER DEFAULT 0
+  );
 `);
 
 // Create default super-admin
@@ -60,9 +67,9 @@ const auth = (req, res, next) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
-  if (!user) return res.status(401).json({ message: "Invalid credentials" });
-  if (!bcrypt.compareSync(password, user.password))
+  if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ message: "Invalid credentials" });
+  }
   const token = jwt.sign(
     { id: user.id, role: user.role, name: user.name },
     SECRET
@@ -91,30 +98,57 @@ app.post("/users", auth, (req, res) => {
 });
 
 app.get("/loans", auth, (req, res) => {
-  const loans = db.prepare("SELECT * FROM loans").all();
-  res.json(loans);
+  try {
+    const loans = db
+      .prepare("SELECT * FROM loans ORDER BY date_borrowed DESC")
+      .all();
+    res.json(loans);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Failed to retrieve loans", error: err.message });
+  }
 });
 
 app.post("/loans", auth, (req, res) => {
-  const { borrower, item, date_borrowed, due_date } = req.body;
-  db.prepare(
-    "INSERT INTO loans (borrower,item,date_borrowed,due_date) VALUES (?,?,?,?)"
-  ).run(borrower, item, date_borrowed, due_date);
-  res.json({ message: "Loan added" });
+  try {
+    const { borrower, item, date_borrowed, due_date } = req.body;
+    const info = db
+      .prepare(
+        "INSERT INTO loans (borrower, item, date_borrowed, due_date) VALUES (?, ?, ?, ?)"
+      )
+      .run(borrower, item, date_borrowed, due_date);
+    res.status(201).json({ message: "Loan added", id: info.lastInsertRowid });
+  } catch (err) {
+    res.status(400).json({ message: "Failed to add loan", error: err.message });
+  }
 });
 
 app.put("/loans/:id/return", auth, (req, res) => {
-  const { id } = req.params;
-  db.prepare("UPDATE loans SET returned=1 WHERE id=?").run(id);
-  res.json({ message: "Loan returned" });
+  try {
+    const { id } = req.params;
+    db.prepare("UPDATE loans SET returned=1 WHERE id=?").run(id);
+    res.json({ message: "Loan returned" });
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: "Failed to return loan", error: err.message });
+  }
 });
 
 app.delete("/loans/:id", auth, (req, res) => {
-  if (req.user.role !== "super-admin")
+  if (req.user.role !== "super-admin") {
     return res.status(403).json({ message: "Not allowed" });
-  const { id } = req.params;
-  db.prepare("DELETE FROM loans WHERE id=?").run(id);
-  res.json({ message: "Loan deleted" });
+  }
+  try {
+    const { id } = req.params;
+    db.prepare("DELETE FROM loans WHERE id=?").run(id);
+    res.json({ message: "Loan deleted" });
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: "Failed to delete loan", error: err.message });
+  }
 });
 
 // Start server
